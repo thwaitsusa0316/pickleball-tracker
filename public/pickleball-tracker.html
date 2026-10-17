@@ -1,0 +1,485 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="theme-color" content="#1B4332" />
+  <title>Pickleball Tracker</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700&family=Source+Sans+3:wght@400;500;600&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --font-display: 'Bricolage Grotesque', Georgia, serif;
+      --font-body: 'Source Sans 3', 'Segoe UI', sans-serif;
+      --ink: #14231a;
+      --ink-soft: #2a3d31;
+      --muted: #5a6f62;
+      --court: #2d6a4f;
+      --accent-deep: #b08900;
+      color: var(--ink);
+      background: #d7e8df;
+      font-family: var(--font-body);
+      font-size: 16px;
+      line-height: 1.5;
+      -webkit-font-smoothing: antialiased;
+    }
+    *, *::before, *::after { box-sizing: border-box; }
+    html, body { margin: 0; min-height: 100%; }
+    body {
+      min-height: 100vh;
+      min-height: 100dvh;
+      background:
+        radial-gradient(ellipse 80% 50% at 10% 0%, rgba(233, 196, 106, 0.28), transparent 55%),
+        radial-gradient(ellipse 70% 45% at 90% 15%, rgba(82, 183, 136, 0.22), transparent 50%),
+        linear-gradient(165deg, #e8f2ea 0%, #d7e8df 42%, #c5dce8 100%);
+    }
+    body::after {
+      content: '';
+      position: fixed;
+      inset: 0;
+      z-index: -1;
+      opacity: 0.09;
+      pointer-events: none;
+      background-image:
+        linear-gradient(90deg, #1b4332 1px, transparent 1px),
+        linear-gradient(#1b4332 1px, transparent 1px);
+      background-size: 48px 48px;
+      mask-image: linear-gradient(to bottom, black 0%, transparent 70%);
+    }
+    .page {
+      width: min(720px, 100%);
+      margin: 0 auto;
+      padding: 2rem 1.15rem 3.5rem;
+      padding-bottom: max(3.5rem, env(safe-area-inset-bottom));
+    }
+    .brand { margin-bottom: 2.25rem; }
+    .brand-mark {
+      margin: 0 0 0.35rem;
+      font-family: var(--font-display);
+      font-size: clamp(2.4rem, 10vw, 3.5rem);
+      font-weight: 700;
+      line-height: 0.95;
+      letter-spacing: -0.03em;
+    }
+    .brand h1 {
+      margin: 0 0 0.7rem;
+      font-family: var(--font-display);
+      font-size: clamp(1.1rem, 4vw, 1.4rem);
+      font-weight: 500;
+      color: var(--ink-soft);
+    }
+    .lede {
+      margin: 0;
+      max-width: 36ch;
+      font-size: 1.02rem;
+      color: var(--muted);
+    }
+    .section { margin-bottom: 2.4rem; }
+    .section-head {
+      margin-bottom: 1rem;
+      padding-bottom: 0.6rem;
+      border-bottom: 2px solid rgba(27, 67, 50, 0.12);
+    }
+    .section-head h2 {
+      margin: 0 0 0.2rem;
+      font-family: var(--font-display);
+      font-size: 1.3rem;
+      font-weight: 700;
+      letter-spacing: -0.02em;
+    }
+    .section-head p { margin: 0; color: var(--muted); font-size: 0.92rem; }
+    .log-form { display: grid; gap: 1.1rem; }
+    .field { display: grid; gap: 0.3rem; }
+    .field span {
+      font-size: 0.75rem;
+      font-weight: 600;
+      letter-spacing: 0.03em;
+      text-transform: uppercase;
+      color: var(--muted);
+    }
+    .field input, .field select {
+      width: 100%;
+      padding: 0.75rem 0.8rem;
+      border: 1.5px solid rgba(27, 67, 50, 0.18);
+      border-radius: 10px;
+      background: rgba(255, 255, 255, 0.78);
+      color: var(--ink);
+      font: inherit;
+      font-size: 1rem;
+    }
+    .field input:focus, .field select:focus {
+      outline: none;
+      border-color: var(--court);
+      background: #fff;
+      box-shadow: 0 0 0 3px rgba(45, 106, 79, 0.18);
+    }
+    .date-field { max-width: 16rem; }
+    .teams { display: grid; gap: 0.75rem; }
+    @media (min-width: 640px) {
+      .teams {
+        grid-template-columns: 1fr auto 1fr;
+        align-items: start;
+        gap: 1rem;
+      }
+    }
+    .team {
+      margin: 0;
+      padding: 0;
+      border: none;
+      display: grid;
+      gap: 0.7rem;
+    }
+    .team legend {
+      padding: 0 0 0.45rem;
+      font-family: var(--font-display);
+      font-size: 1.05rem;
+      font-weight: 700;
+    }
+    .vs {
+      margin: 0;
+      align-self: center;
+      text-align: center;
+      font-family: var(--font-display);
+      font-weight: 700;
+      font-size: 0.9rem;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--accent-deep);
+    }
+    .msg { margin: 0; font-size: 0.95rem; font-weight: 500; }
+    .msg.error { color: #9b2226; }
+    .msg.saved { color: var(--court); }
+    .cta {
+      justify-self: start;
+      padding: 0.9rem 1.45rem;
+      border: none;
+      border-radius: 999px;
+      background: var(--ink);
+      color: #f4faf6;
+      font-family: var(--font-display);
+      font-size: 1rem;
+      font-weight: 700;
+      cursor: pointer;
+    }
+    .cta:active { background: var(--court); }
+    .empty { margin: 0; color: var(--muted); }
+    .game-list { list-style: none; margin: 0; padding: 0; }
+    .game-row {
+      display: grid;
+      gap: 0.3rem;
+      padding: 0.9rem 0;
+      border-bottom: 1px solid rgba(27, 67, 50, 0.12);
+    }
+    .game-row time {
+      font-size: 0.75rem;
+      font-weight: 600;
+      letter-spacing: 0.02em;
+      text-transform: uppercase;
+      color: var(--muted);
+    }
+    .matchup {
+      display: grid;
+      grid-template-columns: 1fr auto 1fr;
+      gap: 0.5rem;
+      align-items: baseline;
+      font-size: 0.98rem;
+    }
+    .matchup > :last-child { text-align: right; }
+    .matchup .score {
+      font-variant-numeric: tabular-nums;
+      font-weight: 700;
+      font-family: var(--font-display);
+    }
+    .winner { font-weight: 600; color: var(--court); }
+    .stats-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-variant-numeric: tabular-nums;
+    }
+    .stats-table th, .stats-table td {
+      padding: 0.65rem 0.35rem;
+      text-align: left;
+      border-bottom: 1px solid rgba(27, 67, 50, 0.12);
+    }
+    .stats-table thead th {
+      font-size: 0.72rem;
+      font-weight: 600;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+      color: var(--muted);
+    }
+    .stats-table tbody th { font-weight: 600; }
+    .stats-table td {
+      width: 2.8rem;
+      text-align: right;
+      color: var(--ink-soft);
+    }
+    .stats-table thead th:not(:first-child) { text-align: right; }
+    .footer {
+      margin-top: 0.5rem;
+      padding-top: 1rem;
+      border-top: 1px solid rgba(27, 67, 50, 0.1);
+      color: var(--muted);
+      font-size: 0.85rem;
+    }
+    .footer p { margin: 0; }
+  </style>
+</head>
+<body>
+  <div class="page">
+    <header class="brand">
+      <p class="brand-mark">Pickleball</p>
+      <h1>Five-player doubles log</h1>
+      <p class="lede">Liz, Amanda, Boyo, Steve, and Maggie — rotate partners, keep score, see which pairs win.</p>
+    </header>
+
+    <main>
+      <section class="section" aria-labelledby="log-heading">
+        <div class="section-head">
+          <h2 id="log-heading">Log a game</h2>
+          <p>Date, two teams of two, and the final score.</p>
+        </div>
+        <form class="log-form" id="log-form" novalidate>
+          <label class="field date-field">
+            <span>Play date</span>
+            <input type="date" id="date" required />
+          </label>
+          <div class="teams">
+            <fieldset class="team">
+              <legend>Team 1</legend>
+              <label class="field"><span>Player 1</span><select id="t1p1"></select></label>
+              <label class="field"><span>Player 2</span><select id="t1p2"></select></label>
+              <label class="field"><span>Score</span><input type="number" id="score1" min="0" step="1" inputmode="numeric" placeholder="0" /></label>
+            </fieldset>
+            <p class="vs" aria-hidden="true">vs</p>
+            <fieldset class="team">
+              <legend>Team 2</legend>
+              <label class="field"><span>Player 1</span><select id="t2p1"></select></label>
+              <label class="field"><span>Player 2</span><select id="t2p2"></select></label>
+              <label class="field"><span>Score</span><input type="number" id="score2" min="0" step="1" inputmode="numeric" placeholder="0" /></label>
+            </fieldset>
+          </div>
+          <p class="msg" id="msg" hidden></p>
+          <button type="submit" class="cta">Save game</button>
+        </form>
+      </section>
+
+      <section class="section" aria-labelledby="games-heading">
+        <div class="section-head">
+          <h2 id="games-heading">Games</h2>
+          <p>Newest first — multiple games per day are fine.</p>
+        </div>
+        <ul class="game-list" id="game-list"></ul>
+        <p class="empty" id="games-empty" hidden>No games logged yet.</p>
+      </section>
+
+      <section class="section" aria-labelledby="stats-heading">
+        <div class="section-head">
+          <h2 id="stats-heading">Stats by pair</h2>
+          <p>Wins, losses, and games for each unordered partner pair.</p>
+        </div>
+        <div id="stats-wrap"></div>
+      </section>
+    </main>
+
+    <footer class="footer">
+      <p>Saved on this phone/browser via localStorage. Open this file anytime — no install needed.</p>
+    </footer>
+  </div>
+
+  <script>
+    const PLAYERS = ['Liz', 'Amanda', 'Boyo', 'Steve', 'Maggie'];
+    const STORAGE_KEY = 'pickleball-tracker:games:v1';
+    const SEEDED_KEY = 'pickleball-tracker:seeded:v1';
+
+    const SEED = [
+      { date: '2026-10-17', team1: ['Boyo', 'Maggie'], team2: ['Steve', 'Liz'], score1: 11, score2: 8 },
+      { date: '2026-10-17', team1: ['Boyo', 'Maggie'], team2: ['Steve', 'Amanda'], score1: 11, score2: 8 },
+      { date: '2026-10-17', team1: ['Boyo', 'Amanda'], team2: ['Liz', 'Maggie'], score1: 11, score2: 3 },
+      { date: '2026-10-17', team1: ['Steve', 'Maggie'], team2: ['Liz', 'Amanda'], score1: 11, score2: 8 },
+    ];
+
+    function todayISO() {
+      const d = new Date();
+      return [
+        d.getFullYear(),
+        String(d.getMonth() + 1).padStart(2, '0'),
+        String(d.getDate()).padStart(2, '0'),
+      ].join('-');
+    }
+
+    function pairLabel(a, b) {
+      return [a, b].sort().join(' & ');
+    }
+
+    function pairKey(a, b) {
+      return [a, b].sort().join('|');
+    }
+
+    function formatDate(iso) {
+      const [y, m, d] = iso.split('-').map(Number);
+      return new Date(y, m - 1, d).toLocaleDateString(undefined, {
+        weekday: 'short', month: 'short', day: 'numeric', year: 'numeric',
+      });
+    }
+
+    function sortGames(games) {
+      return [...games].sort((a, b) => {
+        if (a.date !== b.date) return b.date.localeCompare(a.date);
+        return b.createdAt - a.createdAt;
+      });
+    }
+
+    function uid() {
+      if (crypto.randomUUID) return crypto.randomUUID();
+      return 'g-' + Date.now() + '-' + Math.random().toString(16).slice(2);
+    }
+
+    function loadGames() {
+      try {
+        if (!localStorage.getItem(SEEDED_KEY)) {
+          const base = Date.parse('2026-10-17T12:00:00');
+          const seed = SEED.map((g, i) => ({ ...g, id: uid(), createdAt: base + i * 1000 }));
+          localStorage.setItem(STORAGE_KEY, JSON.stringify(seed));
+          localStorage.setItem(SEEDED_KEY, '1');
+          return sortGames(seed);
+        }
+        const raw = localStorage.getItem(STORAGE_KEY);
+        return raw ? sortGames(JSON.parse(raw)) : [];
+      } catch {
+        return [];
+      }
+    }
+
+    function saveGames(games) {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(games));
+    }
+
+    function computeStats(games) {
+      const map = new Map();
+      const bump = (a, b, won) => {
+        const key = pairKey(a, b);
+        const row = map.get(key) || { key, label: pairLabel(a, b), wins: 0, losses: 0, games: 0 };
+        row.games += 1;
+        if (won) row.wins += 1; else row.losses += 1;
+        map.set(key, row);
+      };
+      for (const g of games) {
+        if (g.score1 === g.score2) continue;
+        const t1 = g.score1 > g.score2;
+        bump(g.team1[0], g.team1[1], t1);
+        bump(g.team2[0], g.team2[1], !t1);
+      }
+      return [...map.values()].sort((a, b) => {
+        if (b.wins !== a.wins) return b.wins - a.wins;
+        if (b.games !== a.games) return b.games - a.games;
+        return a.label.localeCompare(b.label);
+      });
+    }
+
+    function fillSelects() {
+      for (const id of ['t1p1', 't1p2', 't2p1', 't2p2']) {
+        const el = document.getElementById(id);
+        el.innerHTML = '<option value="">Select…</option>' +
+          PLAYERS.map((p) => `<option value="${p}">${p}</option>`).join('');
+      }
+    }
+
+    function showMsg(text, type) {
+      const el = document.getElementById('msg');
+      if (!text) { el.hidden = true; el.textContent = ''; return; }
+      el.hidden = false;
+      el.className = 'msg ' + type;
+      el.textContent = text;
+      el.setAttribute('role', type === 'error' ? 'alert' : 'status');
+    }
+
+    function render(games) {
+      const list = document.getElementById('game-list');
+      const empty = document.getElementById('games-empty');
+      if (!games.length) {
+        list.innerHTML = '';
+        empty.hidden = false;
+      } else {
+        empty.hidden = true;
+        list.innerHTML = games.map((g) => {
+          const t1 = g.score1 > g.score2;
+          const t2 = g.score2 > g.score1;
+          return `<li class="game-row">
+            <time datetime="${g.date}">${formatDate(g.date)}</time>
+            <div class="matchup">
+              <span class="${t1 ? 'winner' : ''}">${pairLabel(g.team1[0], g.team1[1])}</span>
+              <span class="score">${g.score1}–${g.score2}</span>
+              <span class="${t2 ? 'winner' : ''}">${pairLabel(g.team2[0], g.team2[1])}</span>
+            </div>
+          </li>`;
+        }).join('');
+      }
+
+      const stats = computeStats(games);
+      const wrap = document.getElementById('stats-wrap');
+      if (!stats.length) {
+        wrap.innerHTML = '<p class="empty">Stats appear after you log games.</p>';
+      } else {
+        wrap.innerHTML = `<table class="stats-table">
+          <thead><tr><th scope="col">Pair</th><th scope="col">W</th><th scope="col">L</th><th scope="col">GP</th></tr></thead>
+          <tbody>${stats.map((s) =>
+            `<tr><th scope="row">${s.label}</th><td>${s.wins}</td><td>${s.losses}</td><td>${s.games}</td></tr>`
+          ).join('')}</tbody>
+        </table>`;
+      }
+    }
+
+    function resetForm() {
+      document.getElementById('date').value = todayISO();
+      for (const id of ['t1p1', 't1p2', 't2p1', 't2p2', 'score1', 'score2']) {
+        document.getElementById(id).value = '';
+      }
+    }
+
+    let games = loadGames();
+    fillSelects();
+    resetForm();
+    render(games);
+
+    document.getElementById('log-form').addEventListener('submit', (e) => {
+      e.preventDefault();
+      const date = document.getElementById('date').value;
+      const team1 = [document.getElementById('t1p1').value, document.getElementById('t1p2').value];
+      const team2 = [document.getElementById('t2p1').value, document.getElementById('t2p2').value];
+      const score1Raw = document.getElementById('score1').value;
+      const score2Raw = document.getElementById('score2').value;
+      const players = [...team1, ...team2];
+
+      if (players.some((p) => !p)) { showMsg('Pick two players for each team.', 'error'); return; }
+      if (new Set(players).size !== 4) { showMsg('All four players must be distinct.', 'error'); return; }
+      if (!date) { showMsg('Choose a play date.', 'error'); return; }
+      if (score1Raw === '' || score2Raw === '') { showMsg('Enter both scores.', 'error'); return; }
+      const score1 = Number(score1Raw);
+      const score2 = Number(score2Raw);
+      if (!Number.isFinite(score1) || !Number.isFinite(score2) || score1 < 0 || score2 < 0 || !Number.isInteger(score1) || !Number.isInteger(score2)) {
+        showMsg('Scores must be non-negative whole numbers.', 'error');
+        return;
+      }
+
+      const next = {
+        id: uid(),
+        createdAt: Date.now(),
+        date,
+        team1,
+        team2,
+        score1,
+        score2,
+      };
+      games = sortGames([next, ...games]);
+      saveGames(games);
+      render(games);
+      resetForm();
+      showMsg('Game saved.', 'saved');
+      setTimeout(() => showMsg('', ''), 1800);
+    });
+  </script>
+</body>
+</html>
