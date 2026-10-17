@@ -8,7 +8,7 @@
     "build": "tsc -b && vite build",
     "lint": "oxlint",
     "preview": "vite preview",
-    "start": "serve -s dist -l tcp://0.0.0.0:$PORT"
+    "start": "node scripts/write-runtime-config.mjs && serve -s dist -l tcp://0.0.0.0:$PORT"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.118.0",

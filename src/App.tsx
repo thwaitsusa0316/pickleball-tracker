@@ -2,7 +2,7 @@ import { useEffect, useState, type FormEvent } from 'react'
 import type { Game, Player } from './types'
 import { PLAYERS, computePairStats, formatDate, pairLabel, todayISO } from './players'
 import { insertGame, loadGames } from './storage'
-import { getSupabaseConfigError } from './supabase'
+import { getSupabaseConfigError, initSupabaseConfig } from './supabase'
 import './App.css'
 
 type FormState = {
@@ -40,20 +40,29 @@ function validate(form: FormState): string | null {
 }
 
 export default function App() {
-  const configError = getSupabaseConfigError()
   const [games, setGames] = useState<Game[]>([])
-  const [loading, setLoading] = useState(!configError)
-  const [loadError, setLoadError] = useState<string | null>(configError)
+  const [loading, setLoading] = useState(true)
+  const [loadError, setLoadError] = useState<string | null>(null)
+  const [configError, setConfigError] = useState<string | null>(null)
   const [form, setForm] = useState<FormState>(emptyForm)
   const [error, setError] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
   const [justSaved, setJustSaved] = useState(false)
 
   useEffect(() => {
-    if (configError) return
     let cancelled = false
     ;(async () => {
       try {
+        await initSupabaseConfig()
+        const cfgErr = getSupabaseConfigError()
+        if (cancelled) return
+        if (cfgErr) {
+          setConfigError(cfgErr)
+          setLoadError(cfgErr)
+          setLoading(false)
+          return
+        }
+        setConfigError(null)
         const next = await loadGames()
         if (!cancelled) {
           setGames(next)
@@ -70,7 +79,7 @@ export default function App() {
     return () => {
       cancelled = true
     }
-  }, [configError])
+  }, [])
 
   useEffect(() => {
     if (!justSaved) return
@@ -263,7 +272,7 @@ export default function App() {
               </p>
             )}
 
-            <button type="submit" className="cta" disabled={saving || !!configError}>
+            <button type="submit" className="cta" disabled={saving || !!configError || loading}>
               {saving ? 'Saving…' : 'Save game'}
             </button>
           </form>
