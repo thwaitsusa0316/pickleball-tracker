@@ -196,6 +196,19 @@
   color: #9b2226;
 }
 
+.error.banner {
+  margin: 0 0 1.5rem;
+  padding: 0.75rem 0.9rem;
+  border-radius: 10px;
+  background: rgba(155, 34, 38, 0.08);
+}
+
+.cta:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+  transform: none;
+}
+
 .saved {
   color: var(--court);
   animation: fade-in 0.25s ease-out;

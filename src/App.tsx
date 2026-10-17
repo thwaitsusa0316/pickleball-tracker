@@ -1,7 +1,8 @@
 import { useEffect, useState, type FormEvent } from 'react'
 import type { Game, Player } from './types'
 import { PLAYERS, computePairStats, formatDate, pairLabel, todayISO } from './players'
-import { createGame, loadGames, saveGames } from './storage'
+import { insertGame, loadGames } from './storage'
+import { getSupabaseConfigError } from './supabase'
 import './App.css'
 
 type FormState = {
@@ -39,14 +40,37 @@ function validate(form: FormState): string | null {
 }
 
 export default function App() {
+  const configError = getSupabaseConfigError()
   const [games, setGames] = useState<Game[]>([])
+  const [loading, setLoading] = useState(!configError)
+  const [loadError, setLoadError] = useState<string | null>(configError)
   const [form, setForm] = useState<FormState>(emptyForm)
   const [error, setError] = useState<string | null>(null)
+  const [saving, setSaving] = useState(false)
   const [justSaved, setJustSaved] = useState(false)
 
   useEffect(() => {
-    setGames(loadGames())
-  }, [])
+    if (configError) return
+    let cancelled = false
+    ;(async () => {
+      try {
+        const next = await loadGames()
+        if (!cancelled) {
+          setGames(next)
+          setLoadError(null)
+        }
+      } catch (e) {
+        if (!cancelled) {
+          setLoadError(e instanceof Error ? e.message : 'Failed to load games.')
+        }
+      } finally {
+        if (!cancelled) setLoading(false)
+      }
+    })()
+    return () => {
+      cancelled = true
+    }
+  }, [configError])
 
   useEffect(() => {
     if (!justSaved) return
@@ -56,31 +80,41 @@ export default function App() {
 
   const stats = computePairStats(games)
 
-  function onSubmit(e: FormEvent) {
+  async function onSubmit(e: FormEvent) {
     e.preventDefault()
     const message = validate(form)
     if (message) {
       setError(message)
       return
     }
+    if (configError) {
+      setError(configError)
+      return
+    }
 
-    const next = createGame({
-      date: form.date,
-      team1: [form.t1p1 as Player, form.t1p2 as Player],
-      team2: [form.t2p1 as Player, form.t2p2 as Player],
-      score1: Number(form.score1),
-      score2: Number(form.score2),
-    })
-
-    const updated = [next, ...games].sort((a, b) => {
-      if (a.date !== b.date) return b.date.localeCompare(a.date)
-      return b.createdAt - a.createdAt
-    })
-    setGames(updated)
-    saveGames(updated)
-    setForm(emptyForm())
+    setSaving(true)
     setError(null)
-    setJustSaved(true)
+    try {
+      const next = await insertGame({
+        date: form.date,
+        team1: [form.t1p1 as Player, form.t1p2 as Player],
+        team2: [form.t2p1 as Player, form.t2p2 as Player],
+        score1: Number(form.score1),
+        score2: Number(form.score2),
+      })
+      setGames((prev) =>
+        [next, ...prev].sort((a, b) => {
+          if (a.date !== b.date) return b.date.localeCompare(a.date)
+          return b.createdAt - a.createdAt
+        }),
+      )
+      setForm(emptyForm())
+      setJustSaved(true)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to save game.')
+    } finally {
+      setSaving(false)
+    }
   }
 
   function setField<K extends keyof FormState>(key: K, value: FormState[K]) {
@@ -101,6 +135,12 @@ export default function App() {
       </header>
 
       <main>
+        {loadError && (
+          <p className="error banner" role="alert">
+            {loadError}
+          </p>
+        )}
+
         <section className="section" aria-labelledby="log-heading">
           <div className="section-head">
             <h2 id="log-heading">Log a game</h2>
@@ -223,8 +263,8 @@ export default function App() {
               </p>
             )}
 
-            <button type="submit" className="cta">
-              Save game
+            <button type="submit" className="cta" disabled={saving || !!configError}>
+              {saving ? 'Saving…' : 'Save game'}
             </button>
           </form>
         </section>
@@ -235,7 +275,9 @@ export default function App() {
             <p>Newest first — multiple games per day are fine.</p>
           </div>
 
-          {games.length === 0 ? (
+          {loading ? (
+            <p className="empty">Loading games…</p>
+          ) : games.length === 0 ? (
             <p className="empty">No games logged yet.</p>
           ) : (
             <ul className="game-list">
@@ -269,7 +311,9 @@ export default function App() {
             <p>Wins, losses, and games for each unordered partner pair.</p>
           </div>
 
-          {stats.length === 0 ? (
+          {loading ? (
+            <p className="empty">Loading stats…</p>
+          ) : stats.length === 0 ? (
             <p className="empty">Stats appear after you log games.</p>
           ) : (
             <table className="stats-table">
@@ -297,7 +341,7 @@ export default function App() {
       </main>
 
       <footer className="footer">
-        <p>Saved in this browser via localStorage.</p>
+        <p>Games sync via Supabase for everyone on freepickleball.online.</p>
       </footer>
     </div>
   )

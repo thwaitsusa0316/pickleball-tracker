@@ -1,41 +1,30 @@
 import type { Game, Player } from './types'
+import { PLAYERS } from './players'
+import { getSupabase, type GameRow } from './supabase'
 
-const STORAGE_KEY = 'pickleball-tracker:games:v1'
-const SEEDED_KEY = 'pickleball-tracker:seeded:v1'
+function isPlayer(value: string): value is Player {
+  return (PLAYERS as string[]).includes(value)
+}
 
-const SEED_GAMES: Omit<Game, 'id' | 'createdAt'>[] = [
-  {
-    date: '2026-10-17',
-    team1: ['Boyo', 'Maggie'],
-    team2: ['Steve', 'Liz'],
-    score1: 11,
-    score2: 8,
-  },
-  {
-    date: '2026-10-17',
-    team1: ['Boyo', 'Maggie'],
-    team2: ['Steve', 'Amanda'],
-    score1: 11,
-    score2: 8,
-  },
-  {
-    date: '2026-10-17',
-    team1: ['Boyo', 'Amanda'],
-    team2: ['Liz', 'Maggie'],
-    score1: 11,
-    score2: 3,
-  },
-  {
-    date: '2026-10-17',
-    team1: ['Steve', 'Maggie'],
-    team2: ['Liz', 'Amanda'],
-    score1: 11,
-    score2: 8,
-  },
-]
-
-function makeId(): string {
-  return crypto.randomUUID()
+function rowToGame(row: GameRow): Game {
+  const players = [
+    row.team1_player1,
+    row.team1_player2,
+    row.team2_player1,
+    row.team2_player2,
+  ]
+  if (!players.every(isPlayer)) {
+    throw new Error(`Unexpected player name in game ${row.id}`)
+  }
+  return {
+    id: row.id,
+    date: row.play_date,
+    team1: [row.team1_player1 as Player, row.team1_player2 as Player],
+    team2: [row.team2_player1 as Player, row.team2_player2 as Player],
+    score1: row.score1,
+    score2: row.score2,
+    createdAt: new Date(row.created_at).getTime(),
+  }
 }
 
 function sortGames(games: Game[]): Game[] {
@@ -45,40 +34,40 @@ function sortGames(games: Game[]): Game[] {
   })
 }
 
-export function loadGames(): Game[] {
-  try {
-    const seeded = localStorage.getItem(SEEDED_KEY)
-    const raw = localStorage.getItem(STORAGE_KEY)
+export async function loadGames(): Promise<Game[]> {
+  const { data, error } = await getSupabase()
+    .from('games')
+    .select('*')
+    .order('play_date', { ascending: false })
+    .order('created_at', { ascending: false })
 
-    if (!seeded) {
-      const base = Date.parse('2026-10-17T12:00:00')
-      const seed: Game[] = SEED_GAMES.map((g, i) => ({
-        ...g,
-        id: makeId(),
-        createdAt: base + i * 1000,
-      }))
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(seed))
-      localStorage.setItem(SEEDED_KEY, '1')
-      return sortGames(seed)
-    }
-
-    if (!raw) return []
-    return sortGames(JSON.parse(raw) as Game[])
-  } catch {
-    return []
-  }
+  if (error) throw error
+  return sortGames((data as GameRow[] | null)?.map(rowToGame) ?? [])
 }
 
-export function saveGames(games: Game[]): void {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(games))
-}
-
-export function createGame(input: {
+export async function insertGame(input: {
   date: string
   team1: [Player, Player]
   team2: [Player, Player]
   score1: number
   score2: number
-}): Game {
-  return { id: makeId(), createdAt: Date.now(), ...input }
+}): Promise<Game> {
+  const payload = {
+    play_date: input.date,
+    team1_player1: input.team1[0],
+    team1_player2: input.team1[1],
+    team2_player1: input.team2[0],
+    team2_player2: input.team2[1],
+    score1: input.score1,
+    score2: input.score2,
+  }
+
+  const { data, error } = await getSupabase()
+    .from('games')
+    .insert(payload)
+    .select('*')
+    .single()
+
+  if (error) throw error
+  return rowToGame(data as GameRow)
 }
