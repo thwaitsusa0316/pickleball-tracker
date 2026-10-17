@@ -73,20 +73,33 @@ Repo is connected for auto-deploy from `main`. Domain: **freepickleball.online**
 | **Build Command** | `npm run build` |
 | **Start Command** | `npm run start` |
 
-`npm start` runs `serve -s dist -l tcp://0.0.0.0:$PORT` (SPA fallback). No `railway.json` required.
+`npm start` writes `dist/config.json` from env, then runs `serve -s dist -l tcp://0.0.0.0:$PORT` (SPA fallback). No `railway.json` required.
 
 ### Environment variables (Railway UI → Variables)
 
-Set **both** (same values as local `.env.local`):
+Set these on the **same service** that runs the web app (not a separate worker):
 
-- `VITE_SUPABASE_URL`
-- `VITE_SUPABASE_ANON_KEY`
+| Name | Value |
+|------|--------|
+| `VITE_SUPABASE_URL` | `https://YOUR_PROJECT.supabase.co` |
+| `VITE_SUPABASE_ANON_KEY` | Supabase **anon** `public` key |
 
-Vite inlines these at **build** time, so after adding or changing them, trigger a **redeploy / rebuild** (not only a restart).
+Aliases also work: `SUPABASE_URL` / `SUPABASE_ANON_KEY`.
 
-### Domain
+**Why the old “Missing VITE_…” error:** Vite only bakes `import.meta.env.VITE_*` at **build** time. If vars were added after the last build (or only as runtime-only without a rebuild), the JS bundle had empty values. The app now loads `/config.json` written at **container start**, so a redeploy/restart with vars set is enough — a full rebuild is still fine but no longer required for these two keys.
 
-Point / keep custom domain **freepickleball.online** on the Railway service as you already have; no DNS changes are made by this repo.
+After setting variables: **Deploy → Redeploy** (or push to `main`). Confirm deploy logs show `write-runtime-config: wrote dist/config.json`.
+
+### Domain / “Not secure”
+
+Production should be opened as **`https://freepickleball.online`** (not `http://`).
+
+Railway already serves TLS for this hostname (Let's Encrypt). HTTP redirects to HTTPS. If a browser still says “Not secure”:
+
+1. Use the `https://` URL explicitly.
+2. In Railway → service → **Settings → Networking / Custom Domain**, confirm `freepickleball.online` shows a valid certificate (not “pending”).
+3. DNS should CNAME (or Railway’s recommended record) to your `*.up.railway.app` service; wait for DNS/SSL to finish after any domain change.
+4. Hard-refresh or try a private window (stale HTTP bookmarks can confuse).
 
 ## Build
 
