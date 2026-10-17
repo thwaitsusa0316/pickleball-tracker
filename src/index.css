@@ -1,0 +1,42 @@
+:root {
+  --font-display: 'Bricolage Grotesque', Georgia, serif;
+  --font-body: 'Source Sans 3', 'Segoe UI', sans-serif;
+  --ink: #14231a;
+  --ink-soft: #2a3d31;
+  --muted: #5a6f62;
+  --court: #2d6a4f;
+  --accent: #e9c46a;
+  --accent-deep: #b08900;
+  color: var(--ink);
+  background: #d7e8df;
+  font-family: var(--font-body);
+  font-size: 16px;
+  line-height: 1.5;
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  margin: 0;
+  min-height: 100%;
+}
+
+body {
+  min-height: 100vh;
+}
+
+button,
+input,
+select {
+  font: inherit;
+}
