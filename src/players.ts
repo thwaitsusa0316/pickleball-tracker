@@ -1,6 +1,7 @@
-import type { Player, PairStat, Game } from './types'
+import type { PairStat, Game, Player } from './types'
 
-export const PLAYERS: Player[] = ['Liz', 'Amanda', 'Boyo', 'Steve', 'Maggie']
+export const PLAYERS_SQL_HINT =
+  'The players table is missing or empty. In the Supabase SQL editor, run supabase/migrations/20261018140000_create_players.sql (same file as docs/supabase-players.sql). The anon key cannot create tables.'
 
 export function pairKey(a: Player, b: Player): string {
   return [a, b].sort().join('|')
@@ -59,4 +60,13 @@ export function computePairStats(games: Game[]): PairStat[] {
     if (b.games !== a.games) return b.games - a.games
     return a.label.localeCompare(b.label)
   })
+}
+
+export function normalizeName(name: string): string {
+  return name.trim().replace(/\s+/g, ' ')
+}
+
+export function duplicateName(name: string, existing: string[], ignore?: string): boolean {
+  const key = normalizeName(name).toLowerCase()
+  return existing.some((n) => n !== ignore && normalizeName(n).toLowerCase() === key)
 }

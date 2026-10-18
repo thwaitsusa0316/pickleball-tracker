@@ -1,4 +1,10 @@
-export type Player = 'Liz' | 'Amanda' | 'Boyo' | 'Steve' | 'Maggie'
+export type Player = string
+
+export type PlayerRecord = {
+  id: string
+  name: string
+  createdAt: number
+}
 
 export type Game = {
   id: string

@@ -37,6 +37,7 @@ In the [Supabase SQL Editor](https://supabase.com/dashboard), run these files **
 
 1. **`supabase/migrations/20261017200000_create_games.sql`** — creates `games`, enables RLS, allows anon `SELECT` + `INSERT`
 2. **`supabase/seed.sql`** — inserts the four completed 2026-10-17 games (skips the unfinished fifth row)
+3. **`supabase/migrations/20261018140000_create_players.sql`** — creates `players`, seeds Liz, Amanda, Boyo, Steve, Maggie, and Paddy Schipp, and lets anon update player names on games
 
 ### Schema (`games`)
 
@@ -49,7 +50,15 @@ In the [Supabase SQL Editor](https://supabase.com/dashboard), run these files **
 | `score1`, `score2` | `integer` | Non-negative |
 | `created_at` | `timestamptz` | Default `now()` |
 
-Players stay hardcoded in the app (`Liz`, `Amanda`, `Boyo`, `Steve`, `Maggie`).
+The roster lives in `players` (not in app code). The **+** control opens `/players` to rename someone or add a person. Renames also rewrite matching name columns on past games so pair stats stay attached.
+
+### Schema (`players`)
+
+| Column | Type | Notes |
+|--------|------|--------|
+| `id` | `uuid` | PK |
+| `name` | `text` | Unique, not blank |
+| `created_at` | `timestamptz` | Default `now()` |
 
 ### Security tradeoff (RLS)
 
@@ -57,10 +66,11 @@ Policies let the **anon** key **read and insert** any row. That fits a casual fr
 
 Anyone who has the public anon key (it ships in the frontend bundle) can:
 
-- read all games
-- insert arbitrary games
+- read all games and players
+- insert games and players
+- rename players, and update the four name columns on games (scores and dates stay locked by column grants)
 
-They **cannot** update or delete via the anon key (no policies for those). Do **not** put the service-role key in Railway or the browser. If you need private or per-user data later, add auth and tighten RLS.
+They cannot delete rows. Do **not** put the service-role key in Railway or the browser. If you need private or per-user data later, add auth and tighten RLS.
 
 ## Railway deploy
 

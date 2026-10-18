@@ -1,5 +1,11 @@
 import { createClient, type SupabaseClient } from '@supabase/supabase-js'
 
+export type PlayerRow = {
+  id: string
+  name: string
+  created_at: string
+}
+
 export type GameRow = {
   id: string
   play_date: string

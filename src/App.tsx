@@ -1,7 +1,8 @@
 import { useEffect, useState, type FormEvent } from 'react'
-import type { Game, Player } from './types'
-import { PLAYERS, computePairStats, formatDate, pairLabel, todayISO } from './players'
-import { insertGame, loadGames } from './storage'
+import { Link } from 'react-router-dom'
+import type { Game, Player, PlayerRecord } from './types'
+import { PLAYERS_SQL_HINT, computePairStats, formatDate, pairLabel, todayISO } from './players'
+import { insertGame, loadGames, loadPlayers } from './storage'
 import { getSupabaseConfigError, initSupabaseConfig } from './supabase'
 import './App.css'
 
@@ -41,6 +42,7 @@ function validate(form: FormState): string | null {
 
 export default function App() {
   const [games, setGames] = useState<Game[]>([])
+  const [players, setPlayers] = useState<PlayerRecord[]>([])
   const [loading, setLoading] = useState(true)
   const [loadError, setLoadError] = useState<string | null>(null)
   const [configError, setConfigError] = useState<string | null>(null)
@@ -63,10 +65,11 @@ export default function App() {
           return
         }
         setConfigError(null)
-        const next = await loadGames()
+        const [nextGames, nextPlayers] = await Promise.all([loadGames(), loadPlayers()])
         if (!cancelled) {
-          setGames(next)
-          setLoadError(null)
+          setGames(nextGames)
+          setPlayers(nextPlayers)
+          setLoadError(nextPlayers.length === 0 ? PLAYERS_SQL_HINT : null)
         }
       } catch (e) {
         if (!cancelled) {
@@ -136,10 +139,17 @@ export default function App() {
       <div className="atmosphere" aria-hidden="true" />
 
       <header className="brand">
-        <p className="brand-mark">Pickleball</p>
-        <h1>Five-player doubles log</h1>
+        <div className="brand-row">
+          <p className="brand-mark">Pickleball</p>
+          <Link to="/players" className="plus" aria-label="People">
+            +
+          </Link>
+        </div>
+        <h1>Doubles log</h1>
         <p className="lede">
-          Liz, Amanda, Boyo, Steve, and Maggie — rotate partners, keep score, see which pairs win.
+          {players.length > 0
+            ? `${players.map((p) => p.name).join(', ')} — rotate partners, keep score, see which pairs win.`
+            : 'Rotate partners, keep score, see which pairs win.'}
         </p>
       </header>
 
@@ -177,9 +187,9 @@ export default function App() {
                     onChange={(e) => setField('t1p1', e.target.value as Player | '')}
                   >
                     <option value="">Select…</option>
-                    {PLAYERS.map((p) => (
-                      <option key={p} value={p}>
-                        {p}
+                    {players.map((p) => (
+                      <option key={p.id} value={p.name}>
+                        {p.name}
                       </option>
                     ))}
                   </select>
@@ -191,9 +201,9 @@ export default function App() {
                     onChange={(e) => setField('t1p2', e.target.value as Player | '')}
                   >
                     <option value="">Select…</option>
-                    {PLAYERS.map((p) => (
-                      <option key={p} value={p}>
-                        {p}
+                    {players.map((p) => (
+                      <option key={p.id} value={p.name}>
+                        {p.name}
                       </option>
                     ))}
                   </select>
@@ -225,9 +235,9 @@ export default function App() {
                     onChange={(e) => setField('t2p1', e.target.value as Player | '')}
                   >
                     <option value="">Select…</option>
-                    {PLAYERS.map((p) => (
-                      <option key={p} value={p}>
-                        {p}
+                    {players.map((p) => (
+                      <option key={p.id} value={p.name}>
+                        {p.name}
                       </option>
                     ))}
                   </select>
@@ -239,9 +249,9 @@ export default function App() {
                     onChange={(e) => setField('t2p2', e.target.value as Player | '')}
                   >
                     <option value="">Select…</option>
-                    {PLAYERS.map((p) => (
-                      <option key={p} value={p}>
-                        {p}
+                    {players.map((p) => (
+                      <option key={p.id} value={p.name}>
+                        {p.name}
                       </option>
                     ))}
                   </select>
@@ -272,7 +282,7 @@ export default function App() {
               </p>
             )}
 
-            <button type="submit" className="cta" disabled={saving || !!configError || loading}>
+            <button type="submit" className="cta" disabled={saving || !!configError || loading || players.length === 0}>
               {saving ? 'Saving…' : 'Save game'}
             </button>
           </form>
