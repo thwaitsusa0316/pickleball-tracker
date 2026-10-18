@@ -1,7 +1,17 @@
-import type { PairStat, Game, Player } from './types'
+import type { PairStat, Game, Player, PlayerRecord } from './types'
+import playersSetupSql from '../supabase/migrations/20261018140000_create_players.sql?raw'
 
-export const PLAYERS_SQL_HINT =
-  'The players table is missing or empty. In the Supabase SQL editor, run supabase/migrations/20261018140000_create_players.sql (same file as docs/supabase-players.sql). The anon key cannot create tables.'
+export const BUILTIN_PLAYER_NAMES = ['Liz', 'Amanda', 'Boyo', 'Steve', 'Maggie', 'Paddy Schipp'] as const
+
+export const PLAYERS_SETUP_SQL = playersSetupSql
+
+export function builtinRoster(): PlayerRecord[] {
+  return BUILTIN_PLAYER_NAMES.map((name, index) => ({
+    id: `builtin-${index}`,
+    name,
+    createdAt: index,
+  }))
+}
 
 export function pairKey(a: Player, b: Player): string {
   return [a, b].sort().join('|')

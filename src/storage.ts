@@ -1,6 +1,13 @@
 import type { Game, Player, PlayerRecord } from './types'
-import { PLAYERS_SQL_HINT, normalizeName } from './players'
+import { BUILTIN_PLAYER_NAMES, normalizeName } from './players'
 import { getSupabase, type GameRow, type PlayerRow } from './supabase'
+
+export class PlayersTableMissing extends Error {
+  constructor() {
+    super('The players table is not in this Supabase project yet.')
+    this.name = 'PlayersTableMissing'
+  }
+}
 
 function rowToGame(row: GameRow): Game {
   return {
@@ -76,7 +83,7 @@ export async function insertGame(input: {
   return rowToGame(data as GameRow)
 }
 
-export async function loadPlayers(): Promise<PlayerRecord[]> {
+async function fetchPlayers(): Promise<PlayerRecord[]> {
   const { data, error } = await getSupabase()
     .from('players')
     .select('*')
@@ -84,11 +91,30 @@ export async function loadPlayers(): Promise<PlayerRecord[]> {
     .order('name', { ascending: true })
 
   if (error) {
-    if (isMissingTable(error)) throw new Error(PLAYERS_SQL_HINT)
+    if (isMissingTable(error)) throw new PlayersTableMissing()
     throw error
   }
 
   return ((data as PlayerRow[] | null) ?? []).map(rowToPlayer)
+}
+
+export async function loadPlayers(): Promise<PlayerRecord[]> {
+  const existing = await fetchPlayers()
+  if (existing.length > 0) return existing
+
+  const { error } = await getSupabase()
+    .from('players')
+    .upsert(
+      BUILTIN_PLAYER_NAMES.map((name) => ({ name })),
+      { onConflict: 'name', ignoreDuplicates: true },
+    )
+
+  if (error) {
+    if (isMissingTable(error)) throw new PlayersTableMissing()
+    throw error
+  }
+
+  return fetchPlayers()
 }
 
 export async function addPlayer(name: string): Promise<PlayerRecord> {
@@ -103,7 +129,7 @@ export async function addPlayer(name: string): Promise<PlayerRecord> {
 
   if (error) {
     if (error.code === '23505') throw new Error('That name is already on the list.')
-    if (isMissingTable(error)) throw new Error(PLAYERS_SQL_HINT)
+    if (isMissingTable(error)) throw new PlayersTableMissing()
     throw error
   }
   return rowToPlayer(data as PlayerRow)
@@ -129,7 +155,7 @@ export async function renamePlayer(id: string, oldName: string, nextName: string
 
   if (playerError) {
     if (playerError.code === '23505') throw new Error('That name is already on the list.')
-    if (isMissingTable(playerError)) throw new Error(PLAYERS_SQL_HINT)
+    if (isMissingTable(playerError)) throw new PlayersTableMissing()
     throw playerError
   }
 

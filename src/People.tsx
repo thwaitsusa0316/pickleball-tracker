@@ -1,8 +1,8 @@
 import { useEffect, useState, type FormEvent } from 'react'
 import { Link } from 'react-router-dom'
 import type { PlayerRecord } from './types'
-import { PLAYERS_SQL_HINT, duplicateName, normalizeName } from './players'
-import { addPlayer, loadPlayers, renamePlayer } from './storage'
+import { PLAYERS_SETUP_SQL, duplicateName, normalizeName } from './players'
+import { PlayersTableMissing, addPlayer, loadPlayers, renamePlayer } from './storage'
 import { getSupabaseConfigError, initSupabaseConfig } from './supabase'
 import './App.css'
 
@@ -11,6 +11,8 @@ export default function People() {
   const [drafts, setDrafts] = useState<Record<string, string>>({})
   const [loading, setLoading] = useState(true)
   const [setupError, setSetupError] = useState<string | null>(null)
+  const [tableMissing, setTableMissing] = useState(false)
+  const [copied, setCopied] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [notice, setNotice] = useState<string | null>(null)
   const [busyId, setBusyId] = useState<string | null>(null)
@@ -33,9 +35,17 @@ export default function People() {
         if (cancelled) return
         setPlayers(next)
         setDrafts(Object.fromEntries(next.map((p) => [p.id, p.name])))
-        setSetupError(next.length === 0 ? PLAYERS_SQL_HINT : null)
+        setTableMissing(false)
+        setSetupError(null)
       } catch (e) {
-        if (!cancelled) setSetupError(e instanceof Error ? e.message : PLAYERS_SQL_HINT)
+        if (!cancelled) {
+          if (e instanceof PlayersTableMissing) {
+            setTableMissing(true)
+            setSetupError(null)
+          } else {
+            setSetupError(e instanceof Error ? e.message : 'Could not load people.')
+          }
+        }
       } finally {
         if (!cancelled) setLoading(false)
       }
@@ -128,9 +138,28 @@ export default function People() {
           </p>
         )}
 
+        {tableMissing && (
+          <div className="sql-setup">
+            <p>Run this once in the Supabase SQL editor. After that, names you add or edit here are saved for everyone.</p>
+            <button
+              type="button"
+              className="cta slim"
+              onClick={async () => {
+                await navigator.clipboard.writeText(PLAYERS_SETUP_SQL)
+                setCopied(true)
+              }}
+            >
+              {copied ? 'Copied' : 'Copy SQL'}
+            </button>
+            <pre tabIndex={0}>
+              <code>{PLAYERS_SETUP_SQL}</code>
+            </pre>
+          </div>
+        )}
+
         {loading ? (
           <p className="empty">Loading people…</p>
-        ) : (
+        ) : tableMissing ? null : (
           <ul className="people-list">
             {players.map((player) => {
               const dirty = normalizeName(drafts[player.id] ?? '') !== player.name
@@ -161,6 +190,7 @@ export default function People() {
           </ul>
         )}
 
+        {!loading && !tableMissing && (
         <form className="add-person" onSubmit={onAdd}>
           <label className="field">
             <span>Add a person</span>
@@ -178,6 +208,7 @@ export default function People() {
             {busyId === 'new' ? 'Adding…' : 'Add'}
           </button>
         </form>
+        )}
       </main>
     </div>
   )

@@ -1,8 +1,8 @@
 import { useEffect, useState, type FormEvent } from 'react'
 import { Link } from 'react-router-dom'
 import type { Game, Player, PlayerRecord } from './types'
-import { PLAYERS_SQL_HINT, computePairStats, formatDate, pairLabel, todayISO } from './players'
-import { insertGame, loadGames, loadPlayers } from './storage'
+import { builtinRoster, computePairStats, formatDate, pairLabel, todayISO } from './players'
+import { PlayersTableMissing, insertGame, loadGames, loadPlayers } from './storage'
 import { getSupabaseConfigError, initSupabaseConfig } from './supabase'
 import './App.css'
 
@@ -65,11 +65,23 @@ export default function App() {
           return
         }
         setConfigError(null)
-        const [nextGames, nextPlayers] = await Promise.all([loadGames(), loadPlayers()])
-        if (!cancelled) {
-          setGames(nextGames)
-          setPlayers(nextPlayers)
-          setLoadError(nextPlayers.length === 0 ? PLAYERS_SQL_HINT : null)
+        const [gamesResult, playersResult] = await Promise.allSettled([loadGames(), loadPlayers()])
+        if (cancelled) return
+
+        if (gamesResult.status === 'fulfilled') {
+          setGames(gamesResult.value)
+        } else {
+          const reason = gamesResult.reason
+          setLoadError(reason instanceof Error ? reason.message : 'Failed to load games.')
+        }
+
+        if (playersResult.status === 'fulfilled') {
+          setPlayers(playersResult.value)
+        } else if (playersResult.reason instanceof PlayersTableMissing) {
+          setPlayers(builtinRoster())
+        } else {
+          const reason = playersResult.reason
+          setLoadError(reason instanceof Error ? reason.message : 'Failed to load players.')
         }
       } catch (e) {
         if (!cancelled) {

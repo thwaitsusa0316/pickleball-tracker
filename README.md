@@ -50,7 +50,7 @@ In the [Supabase SQL Editor](https://supabase.com/dashboard), run these files **
 | `score1`, `score2` | `integer` | Non-negative |
 | `created_at` | `timestamptz` | Default `now()` |
 
-The roster lives in `players` (not in app code). The **+** control opens `/players` to rename someone or add a person. Renames also rewrite matching name columns on past games so pair stats stay attached.
+The **+** control opens `/players`. When the `players` table exists, names load from Supabase (an empty table is filled with Liz, Amanda, Boyo, Steve, Maggie, and Paddy Schipp). If that table has not been created yet, the game log still uses those six names, and `/players` shows the setup SQL to run once in the Supabase SQL editor. Renames also rewrite matching name columns on past games so pair stats stay attached.
 
 ### Schema (`players`)
 

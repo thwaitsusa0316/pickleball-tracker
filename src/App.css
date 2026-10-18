@@ -95,6 +95,29 @@
   padding: 0.7rem 1rem;
 }
 
+.sql-setup {
+  display: grid;
+  gap: 0.75rem;
+  margin-bottom: 1.5rem;
+}
+
+.sql-setup p {
+  margin: 0;
+}
+
+.sql-setup pre {
+  margin: 0;
+  max-height: 22rem;
+  overflow: auto;
+  padding: 0.9rem 1rem;
+  border-radius: 12px;
+  background: rgba(20, 35, 26, 0.92);
+  color: #f4faf6;
+  font-size: 0.78rem;
+  line-height: 1.45;
+  white-space: pre-wrap;
+}
+
 .sr-only {
   position: absolute;
   width: 1px;
