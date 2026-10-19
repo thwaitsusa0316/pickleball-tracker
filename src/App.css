@@ -356,6 +356,40 @@
   animation: fade-in 0.35s ease-out both;
 }
 
+.game-top {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.text-btn {
+  padding: 0;
+  border: none;
+  background: none;
+  color: var(--court);
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.edit-form {
+  display: grid;
+  gap: 0.85rem;
+}
+
+.edit-label {
+  margin: 0;
+  font-family: var(--font-display);
+  font-weight: 700;
+}
+
+.edit-actions {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
 .game-row time {
   font-size: 0.8rem;
   font-weight: 600;

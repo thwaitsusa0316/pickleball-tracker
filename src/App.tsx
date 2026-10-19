@@ -2,7 +2,7 @@ import { useEffect, useState, type FormEvent } from 'react'
 import { Link } from 'react-router-dom'
 import type { Game, Player, PlayerRecord } from './types'
 import { builtinRoster, computePairStats, formatDate, pairLabel, todayISO } from './players'
-import { PlayersTableMissing, insertGame, loadGames, loadPlayers } from './storage'
+import { PlayersTableMissing, insertGame, loadGames, loadPlayers, updateGame } from './storage'
 import { getSupabaseConfigError, initSupabaseConfig } from './supabase'
 import './App.css'
 
@@ -27,9 +27,9 @@ const emptyForm = (): FormState => ({
 })
 
 function validate(form: FormState): string | null {
-  const players = [form.t1p1, form.t1p2, form.t2p1, form.t2p2]
-  if (players.some((p) => !p)) return 'Pick two players for each team.'
-  if (new Set(players).size !== 4) return 'All four players must be distinct.'
+  if (!form.t1p1 || !form.t2p1) return 'Pick player 1 for each team.'
+  const picked = [form.t1p1, form.t1p2, form.t2p1, form.t2p2].filter(Boolean)
+  if (new Set(picked).size !== picked.length) return 'Every selected player must be distinct.'
   if (!form.date) return 'Choose a play date.'
   if (form.score1 === '' || form.score2 === '') return 'Enter both scores.'
   const s1 = Number(form.score1)
@@ -38,6 +38,13 @@ function validate(form: FormState): string | null {
     return 'Scores must be non-negative whole numbers.'
   }
   return null
+}
+
+function toTeams(form: FormState): { team1: [Player, Player]; team2: [Player, Player] } {
+  return {
+    team1: [form.t1p1, form.t1p2],
+    team2: [form.t2p1, form.t2p2],
+  }
 }
 
 export default function App() {
@@ -50,6 +57,10 @@ export default function App() {
   const [error, setError] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
   const [justSaved, setJustSaved] = useState(false)
+  const [editingId, setEditingId] = useState<string | null>(null)
+  const [editForm, setEditForm] = useState<FormState | null>(null)
+  const [editError, setEditError] = useState<string | null>(null)
+  const [editSaving, setEditSaving] = useState(false)
 
   useEffect(() => {
     let cancelled = false
@@ -119,10 +130,11 @@ export default function App() {
     setSaving(true)
     setError(null)
     try {
+      const teams = toTeams(form)
       const next = await insertGame({
         date: form.date,
-        team1: [form.t1p1 as Player, form.t1p2 as Player],
-        team2: [form.t2p1 as Player, form.t2p2 as Player],
+        team1: teams.team1,
+        team2: teams.team2,
         score1: Number(form.score1),
         score2: Number(form.score2),
       })
@@ -144,6 +156,67 @@ export default function App() {
   function setField<K extends keyof FormState>(key: K, value: FormState[K]) {
     setForm((prev) => ({ ...prev, [key]: value }))
     setError(null)
+  }
+
+  function startEdit(game: Game) {
+    setEditingId(game.id)
+    setEditForm({
+      date: game.date,
+      t1p1: game.team1[0],
+      t1p2: game.team1[1],
+      t2p1: game.team2[0],
+      t2p2: game.team2[1],
+      score1: String(game.score1),
+      score2: String(game.score2),
+    })
+    setEditError(null)
+  }
+
+  function cancelEdit() {
+    setEditingId(null)
+    setEditForm(null)
+    setEditError(null)
+  }
+
+  async function saveEdit(e: FormEvent) {
+    e.preventDefault()
+    if (!editingId || !editForm) return
+    const message = validate(editForm)
+    if (message) {
+      setEditError(message)
+      return
+    }
+    setEditSaving(true)
+    setEditError(null)
+    try {
+      const teams = toTeams(editForm)
+      const updated = await updateGame(editingId, {
+        date: editForm.date,
+        team1: teams.team1,
+        team2: teams.team2,
+        score1: Number(editForm.score1),
+        score2: Number(editForm.score2),
+      })
+      setGames((prev) =>
+        prev
+          .map((game) => (game.id === updated.id ? updated : game))
+          .sort((a, b) => {
+            if (a.date !== b.date) return b.date.localeCompare(a.date)
+            return b.createdAt - a.createdAt
+          }),
+      )
+      cancelEdit()
+    } catch (err) {
+      setEditError(err instanceof Error ? err.message : 'Failed to save game.')
+    } finally {
+      setEditSaving(false)
+    }
+  }
+
+  function playerChoices(current: string): string[] {
+    const names = players.map((player) => player.name)
+    if (current && !names.includes(current)) return [current, ...names]
+    return names
   }
 
   return (
@@ -207,12 +280,12 @@ export default function App() {
                   </select>
                 </label>
                 <label className="field">
-                  <span>Player 2</span>
+                  <span>Player 2 (optional)</span>
                   <select
                     value={form.t1p2}
                     onChange={(e) => setField('t1p2', e.target.value as Player | '')}
                   >
-                    <option value="">Select…</option>
+                    <option value="">None</option>
                     {players.map((p) => (
                       <option key={p.id} value={p.name}>
                         {p.name}
@@ -255,12 +328,12 @@ export default function App() {
                   </select>
                 </label>
                 <label className="field">
-                  <span>Player 2</span>
+                  <span>Player 2 (optional)</span>
                   <select
                     value={form.t2p2}
                     onChange={(e) => setField('t2p2', e.target.value as Player | '')}
                   >
-                    <option value="">Select…</option>
+                    <option value="">None</option>
                     {players.map((p) => (
                       <option key={p.id} value={p.name}>
                         {p.name}
@@ -315,20 +388,170 @@ export default function App() {
               {games.map((g) => {
                 const t1Win = g.score1 > g.score2
                 const t2Win = g.score2 > g.score1
+                const editing = editingId === g.id && editForm
                 return (
                   <li key={g.id} className="game-row">
-                    <time dateTime={g.date}>{formatDate(g.date)}</time>
-                    <div className="matchup">
-                      <span className={t1Win ? 'winner' : undefined}>
-                        {pairLabel(g.team1[0], g.team1[1])}
-                      </span>
-                      <span className="score">
-                        {g.score1}–{g.score2}
-                      </span>
-                      <span className={t2Win ? 'winner' : undefined}>
-                        {pairLabel(g.team2[0], g.team2[1])}
-                      </span>
-                    </div>
+                    {editing ? (
+                      <form className="edit-form" onSubmit={saveEdit} noValidate>
+                        <div className="game-top">
+                          <p className="edit-label">Edit game</p>
+                          <button type="button" className="text-btn" onClick={cancelEdit}>
+                            Cancel
+                          </button>
+                        </div>
+                        <label className="field date-field">
+                          <span>Play date</span>
+                          <input
+                            type="date"
+                            value={editForm.date}
+                            onChange={(e) => {
+                              setEditForm({ ...editForm, date: e.target.value })
+                              setEditError(null)
+                            }}
+                          />
+                        </label>
+                        <div className="teams">
+                          <fieldset className="team">
+                            <legend>Team 1</legend>
+                            <label className="field">
+                              <span>Player 1</span>
+                              <select
+                                value={editForm.t1p1}
+                                onChange={(e) => {
+                                  setEditForm({ ...editForm, t1p1: e.target.value })
+                                  setEditError(null)
+                                }}
+                              >
+                                <option value="">Select…</option>
+                                {playerChoices(editForm.t1p1).map((name) => (
+                                  <option key={name} value={name}>
+                                    {name}
+                                  </option>
+                                ))}
+                              </select>
+                            </label>
+                            <label className="field">
+                              <span>Player 2 (optional)</span>
+                              <select
+                                value={editForm.t1p2}
+                                onChange={(e) => {
+                                  setEditForm({ ...editForm, t1p2: e.target.value })
+                                  setEditError(null)
+                                }}
+                              >
+                                <option value="">None</option>
+                                {playerChoices(editForm.t1p2).map((name) => (
+                                  <option key={name} value={name}>
+                                    {name}
+                                  </option>
+                                ))}
+                              </select>
+                            </label>
+                            <label className="field score-field">
+                              <span>Score</span>
+                              <input
+                                type="number"
+                                min={0}
+                                step={1}
+                                inputMode="numeric"
+                                value={editForm.score1}
+                                onChange={(e) => {
+                                  setEditForm({ ...editForm, score1: e.target.value })
+                                  setEditError(null)
+                                }}
+                              />
+                            </label>
+                          </fieldset>
+                          <p className="vs" aria-hidden="true">
+                            vs
+                          </p>
+                          <fieldset className="team">
+                            <legend>Team 2</legend>
+                            <label className="field">
+                              <span>Player 1</span>
+                              <select
+                                value={editForm.t2p1}
+                                onChange={(e) => {
+                                  setEditForm({ ...editForm, t2p1: e.target.value })
+                                  setEditError(null)
+                                }}
+                              >
+                                <option value="">Select…</option>
+                                {playerChoices(editForm.t2p1).map((name) => (
+                                  <option key={name} value={name}>
+                                    {name}
+                                  </option>
+                                ))}
+                              </select>
+                            </label>
+                            <label className="field">
+                              <span>Player 2 (optional)</span>
+                              <select
+                                value={editForm.t2p2}
+                                onChange={(e) => {
+                                  setEditForm({ ...editForm, t2p2: e.target.value })
+                                  setEditError(null)
+                                }}
+                              >
+                                <option value="">None</option>
+                                {playerChoices(editForm.t2p2).map((name) => (
+                                  <option key={name} value={name}>
+                                    {name}
+                                  </option>
+                                ))}
+                              </select>
+                            </label>
+                            <label className="field score-field">
+                              <span>Score</span>
+                              <input
+                                type="number"
+                                min={0}
+                                step={1}
+                                inputMode="numeric"
+                                value={editForm.score2}
+                                onChange={(e) => {
+                                  setEditForm({ ...editForm, score2: e.target.value })
+                                  setEditError(null)
+                                }}
+                              />
+                            </label>
+                          </fieldset>
+                        </div>
+                        {editError && (
+                          <p className="error" role="alert">
+                            {editError}
+                          </p>
+                        )}
+                        <div className="edit-actions">
+                          <button type="submit" className="cta slim" disabled={editSaving}>
+                            {editSaving ? 'Saving…' : 'Save'}
+                          </button>
+                          <button type="button" className="text-btn" onClick={cancelEdit}>
+                            Cancel
+                          </button>
+                        </div>
+                      </form>
+                    ) : (
+                      <>
+                        <div className="game-top">
+                          <time dateTime={g.date}>{formatDate(g.date)}</time>
+                          <button type="button" className="text-btn" onClick={() => startEdit(g)}>
+                            Edit
+                          </button>
+                        </div>
+                        <div className="matchup">
+                          <span className={t1Win ? 'winner' : undefined}>
+                            {pairLabel(g.team1[0], g.team1[1])}
+                          </span>
+                          <span className="score">
+                            {g.score1}–{g.score2}
+                          </span>
+                          <span className={t2Win ? 'winner' : undefined}>
+                            {pairLabel(g.team2[0], g.team2[1])}
+                          </span>
+                        </div>
+                      </>
+                    )}
                   </li>
                 )
               })}

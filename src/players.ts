@@ -13,12 +13,16 @@ export function builtinRoster(): PlayerRecord[] {
   }))
 }
 
+function sideNames(a: Player, b: Player): string[] {
+  return [a, b].map((name) => name.trim()).filter(Boolean).sort()
+}
+
 export function pairKey(a: Player, b: Player): string {
-  return [a, b].sort().join('|')
+  return sideNames(a, b).join('|')
 }
 
 export function pairLabel(a: Player, b: Player): string {
-  return [a, b].sort().join(' & ')
+  return sideNames(a, b).join(' & ')
 }
 
 export function todayISO(): string {
@@ -61,8 +65,8 @@ export function computePairStats(games: Game[]): PairStat[] {
     const team1Won = g.score1 > g.score2
     const team2Won = g.score2 > g.score1
     if (!team1Won && !team2Won) continue
-    bump(g.team1[0], g.team1[1], team1Won)
-    bump(g.team2[0], g.team2[1], team2Won)
+    if (pairKey(g.team1[0], g.team1[1])) bump(g.team1[0], g.team1[1], team1Won)
+    if (pairKey(g.team2[0], g.team2[1])) bump(g.team2[0], g.team2[1], team2Won)
   }
 
   return [...map.values()].sort((a, b) => {

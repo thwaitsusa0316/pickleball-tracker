@@ -6,7 +6,8 @@ Hosted at **[freepickleball.online](https://freepickleball.online)** (Railway), 
 
 ## Features
 
-- **Log a game** — play date, two teams of two (dropdowns), and scores, with validation
+- **Log a game** — play date, teams (player 2 optional, so 1v1, 1v2, or 2v2), and scores
+- **Edit a game** — change the date, players, or scores on a logged game
 - **Games list** — newest first; multiple games per day supported
 - **Stats by pair** — wins / losses / games played for each unordered partner pair (full names, alphabetically normalized)
 
@@ -38,6 +39,7 @@ In the [Supabase SQL Editor](https://supabase.com/dashboard), run these files **
 1. **`supabase/migrations/20261017200000_create_games.sql`** — creates `games`, enables RLS, allows anon `SELECT` + `INSERT`
 2. **`supabase/seed.sql`** — inserts the four completed 2026-10-17 games (skips the unfinished fifth row)
 3. **`supabase/migrations/20261018140000_create_players.sql`** — creates `players`, seeds Liz, Amanda, Boyo, Steve, Maggie, and Paddy Schipp, and lets anon update player names on games
+4. **`supabase/migrations/20261019130000_games_update_scores.sql`** — lets anon update `play_date`, `score1`, and `score2` as well (needed before Edit can save dates and scores)
 
 ### Schema (`games`)
 

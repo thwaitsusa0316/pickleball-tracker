@@ -79,8 +79,46 @@ export async function insertGame(input: {
     .select('*')
     .single()
 
-  if (error) throw error
+  if (error) throw new Error(gameWriteError(error))
   return rowToGame(data as GameRow)
+}
+
+export async function updateGame(
+  id: string,
+  input: {
+    date: string
+    team1: [Player, Player]
+    team2: [Player, Player]
+    score1: number
+    score2: number
+  },
+): Promise<Game> {
+  const payload = {
+    play_date: input.date,
+    team1_player1: input.team1[0],
+    team1_player2: input.team1[1],
+    team2_player1: input.team2[0],
+    team2_player2: input.team2[1],
+    score1: input.score1,
+    score2: input.score2,
+  }
+
+  const { data, error } = await getSupabase()
+    .from('games')
+    .update(payload)
+    .eq('id', id)
+    .select('*')
+    .single()
+
+  if (error) throw new Error(gameWriteError(error))
+  return rowToGame(data as GameRow)
+}
+
+function gameWriteError(error: { code?: string; message?: string }): string {
+  if (error.code === '42501') {
+    return 'Date and score changes are not allowed yet. Run the game-edit SQL once in the Supabase SQL editor, then save again.'
+  }
+  return error.message || 'Could not save that game.'
 }
 
 async function fetchPlayers(): Promise<PlayerRecord[]> {
